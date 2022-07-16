@@ -1,0 +1,4 @@
+include ':app', ':tess-two'
+rootProject.name='ARSudokuSolver'
+include ':openCVLibrary343'
+include ':libraries:tess-two'
