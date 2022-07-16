@@ -16,6 +16,7 @@ import org.opencv.core.MatOfPoint;
 import org.opencv.core.MatOfPoint2f;
 import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
+import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 
 import java.io.File;
@@ -37,6 +38,7 @@ import android.graphics.Bitmap;
 import android.os.Bundle;
 
 
+import android.os.Environment;
 import android.util.Log;
 
 import android.view.SurfaceView;
@@ -49,7 +51,7 @@ import androidx.core.content.ContextCompat;
 
 import org.opencv.core.Size;
 import org.w3c.dom.Element;
-
+import com.googlecode.tesseract.android.TessBaseAPI;
 
 public class MainActivity extends Activity implements CvCameraViewListener2 {
     private static final String TAG = "OCVSample::Activity";
@@ -167,7 +169,7 @@ public class MainActivity extends Activity implements CvCameraViewListener2 {
 
         mOpenCvCameraView = (CameraBridgeViewBase) findViewById(R.id.main_activity);
         mOpenCvCameraView.setVisibility(SurfaceView.VISIBLE);
-
+        mOpenCvCameraView.setCameraPermissionGranted();
         mOpenCvCameraView.setCvCameraViewListener(this);
 
         File directory = new File(c.getFilesDir(), "/Directory/tessdata/");
@@ -255,11 +257,7 @@ public class MainActivity extends Activity implements CvCameraViewListener2 {
             mOpenCvCameraView.disableView();
     }
 
-    @Override
-    public Object doInBackground(Object[] objects) {
 
-        return null;
-    }
 
     public void onCameraViewStarted(int width, int height) {
         mRGBa = new Mat(height, width, CvType.CV_8UC4);
@@ -285,13 +283,13 @@ public class MainActivity extends Activity implements CvCameraViewListener2 {
         Mat blurMat = new Mat();
         Imgproc.GaussianBlur(mGray, blurMat, new Size(9, 9), 0);
         Mat threshMat = new Mat();
-        Imgproc.adaptiveThreshold(blurMat, threshMat, 255, Imgproc.ADAPTIVE_THRESH_GAUSSIAN_C, Imgproc.THRESH_BINARY, 11, 2);
-        Core.bitwise_not(threshMat,threshMat);
-        Imgproc.dilate(threshMat,threshMat, new Mat());
+        Imgproc.adaptiveThreshold(blurMat, threshMat, 255, Imgproc.ADAPTIVE_THRESH_GAUSSIAN_C, Imgproc.THRESH_BINARY_INV, 11, 2);
+        //Core.bitwise_not(threshMat,threshMat);
+        //Imgproc.dilate(threshMat,threshMat, new Mat());
 
         contours = new ArrayList<>();
         Mat hierarchy = new Mat();
-        Imgproc.findContours(threshMat, contours, hierarchy, Imgproc.RETR_TREE, Imgproc.CHAIN_APPROX_SIMPLE);
+        Imgproc.findContours(threshMat, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
         hierarchy.release();
 
         MatOfPoint2f biggest = new MatOfPoint2f();
@@ -411,13 +409,13 @@ public class MainActivity extends Activity implements CvCameraViewListener2 {
                 tessBaseApi.setVariable("classify_bin_numeric_mode", "1");
 
                 //Mat cropped2 = cropped.clone();
-                Point sortedPoints[] = {TopLeft,TopRight,BotLeft,BotRight};
+                Point[] sortedPoints = {TopLeft,TopRight,BotLeft,BotRight};
 
-                Mat cropped2 = PerspectiveTransform(sortedPoints,height,width, mRGBa.clone());
+                Mat cropped2 = PerspectiveTransform(sortedPoints,height,width, mRGBa);
 
-                //Imgproc.cvtColor(cropped2,cropped2,Imgproc.COLOR_RGB2GRAY);
-                double HeightCheck = cropped2.height() /1.5;
-                double WidthCheck = cropped2 . width() / 1.5;
+
+                double HeightCheck = cropped2.height() * 0.9;
+                double WidthCheck = cropped2.width() * 0.9;
                 Rect cropRec = cropBiggestSquare(cropped2);
 
                 if(cropRec.area() > HeightCheck * WidthCheck)
@@ -457,12 +455,14 @@ public class MainActivity extends Activity implements CvCameraViewListener2 {
                             Point p1 = new Point(cx - WPadding, cy - HPadding);
                             Point p2 = new Point(cx + WPadding, cy + HPadding);
                             Rect Re = new Rect(p1, p2);
-
-                            Mat digitCrop = new Mat(cropped2, Re);
-
-
+                            Mat digitCrop = new Mat(cropped2,Re);
+                            Imgproc.cvtColor(digitCrop,digitCrop,Imgproc.COLOR_RGB2GRAY);
+                            //Imgproc.GaussianBlur(digitCrop, digitCrop, new Size(5, 5), 0);w
+                            //Imgproc.adaptiveThreshold(digitCrop, digitCrop, 255, Imgproc.ADAPTIVE_THRESH_MEAN_C, Imgproc.THRESH_BINARY_INV, 11, 10);
                             Imgproc.GaussianBlur(digitCrop, digitCrop, new Size(5, 5), 0);
+
                             Imgproc.adaptiveThreshold(digitCrop, digitCrop, 255, Imgproc.ADAPTIVE_THRESH_MEAN_C, Imgproc.THRESH_BINARY_INV, 11, 10);
+
                             ;
                             //Imgproc.GaussianBlur(digitCrop, digitCrop, new Size(5, 5), 0);
 
@@ -500,13 +500,13 @@ public class MainActivity extends Activity implements CvCameraViewListener2 {
 
 
                             }*/
-/*
+                            /*
                                 File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
                                 String filename = "test" +ix+""+iy+ ".png";
                                 File file = new File(path,filename);
                                 filename = file.toString();
-                                Imgcodecs.imwrite(filename, digitCrop);*/
-
+                                Imgcodecs.imwrite(filename, digitCrop);
+                               */
 
 
                             //Imgproc.rectangle(cropped2, p1, p2, new Scalar(0, 0, 0));
@@ -518,7 +518,7 @@ public class MainActivity extends Activity implements CvCameraViewListener2 {
                                 tessBaseApi.setImage(digit_bitmap);
                                 String recognizedText = tessBaseApi.getUTF8Text();
                                 if (recognizedText.length() == 1) {
-                                    Subox[iy][ix] = Integer.valueOf(recognizedText);
+                                    Subox[iy][ix] = Integer.parseInt(recognizedText);
                                 }
                                 tessBaseApi.clear();
                             }
@@ -534,7 +534,7 @@ public class MainActivity extends Activity implements CvCameraViewListener2 {
                     }
 
                 }
-                tessBaseApi.end();
+                tessBaseApi.clear();
 
                 /*if (Subox[0][0] != 0)
                     Imgproc.putText(mRGBa, Subox[0][0] + "", new Point(TopLeft.x, TopLeft.y),
@@ -571,7 +571,7 @@ public class MainActivity extends Activity implements CvCameraViewListener2 {
                     isSolved = false;
                 }
 
-
+                cropped2.release();
             }
 
 
@@ -789,8 +789,8 @@ public class MainActivity extends Activity implements CvCameraViewListener2 {
 
     public Rect cropBiggestSquare(Mat Pic) {
 
-        Mat mGray = Pic;
-        Imgproc.cvtColor(mGray, mGray, Imgproc.COLOR_RGB2GRAY);
+        Mat mGray = new Mat();
+        Imgproc.cvtColor(Pic.clone(), mGray, Imgproc.COLOR_RGB2GRAY);
         Mat blurMat = new Mat();
         Imgproc.GaussianBlur(mGray, blurMat, new Size(5, 5), 0);
         Mat threshMat = new Mat();
