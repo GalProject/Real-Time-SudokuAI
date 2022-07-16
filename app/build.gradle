@@ -26,5 +26,5 @@ dependencies {
     implementation project(path: ':openCVLibrary343')
 
     implementation project(path: ':libraries:tess-two')
-    implementation 'androidx.constraintlayout:constraintlayout:2.1.2'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
 }
